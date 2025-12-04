@@ -1,16 +1,104 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
+import React, { useState } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import Header from "@/components/layout/Header";
+import TransactionList from "@/components/transactions/TransactionList";
+import AddTransactionForm from "@/components/transactions/AddTransactionForm";
+import { Transaction } from "@/types";
+import { v4 as uuidv4 } from "uuid";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Index = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  const handleAddTransaction = (newTransactionData: Omit<Transaction, "id" | "date">) => {
+    const newTransaction: Transaction = {
+      ...newTransactionData,
+      id: uuidv4(),
+      date: new Date().toISOString(),
+    };
+    setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
+  };
+
+  const totalIncome = transactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpense = transactions
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const balance = totalIncome - totalExpense;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
-        </p>
-      </div>
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+      <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Receitas</CardTitle>
+                <span className="text-green-500">▲</span>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(totalIncome)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+                <span className="text-red-500">▼</span>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(totalExpense)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Saldo</CardTitle>
+                <span>📊</span>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(balance)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Minhas Transações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TransactionList transactions={transactions} />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-1 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Adicionar Nova Transação</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AddTransactionForm onAddTransaction={handleAddTransaction} />
+            </CardContent>
+          </Card>
+        </div>
+      </main>
       <MadeWithDyad />
     </div>
   );
