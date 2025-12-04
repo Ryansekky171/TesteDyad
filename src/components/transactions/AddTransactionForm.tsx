@@ -37,22 +37,22 @@ import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid"; // Importar uuidv4
+import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/lib/supabase"; // Importar supabase
 
 const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
-  amount: z.coerce.number().min(0.01, "O valor total deve ser positivo."), // Now represents total amount
-  installmentAmount: z.coerce.number().optional(), // Made truly optional
+  amount: z.coerce.number().min(0.01, "O valor total deve ser positivo."),
+  installmentAmount: z.coerce.number().optional(),
   date: z.date({ required_error: "A data é obrigatória." }),
   paymentMethod: z.enum(["Débito", "Crédito", "Boleto", "Pix", "Dinheiro"], {
     required_error: "O método de pagamento é obrigatório.",
   }),
   isInstallment: z.boolean().optional(),
   numberOfInstallments: z.coerce.number().min(2, "Mínimo de 2 parcelas.").optional(),
-  description: z.string().optional().default(""), // Made optional and defaults to empty string
-  isRecurring: z.boolean().optional(), // Novo campo para recorrência
+  description: z.string().optional().default(""),
+  isRecurring: z.boolean().optional(),
 }).superRefine((data, ctx) => {
-  // Lógica de validação para parcelamento (apenas para despesas de crédito)
   if (data.paymentMethod === "Crédito" && data.isInstallment && data.isInstallment !== undefined) {
     if (!data.numberOfInstallments || data.numberOfInstallments < 2) {
       ctx.addIssue({
@@ -81,9 +81,9 @@ const formSchema = z.object({
 });
 
 interface AddTransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id"> | Omit<Transaction, "id">[]) => void; // Pode receber uma ou várias transações
+  onAddTransaction: (transaction: Omit<Transaction, "id"> | Omit<Transaction, "id">[]) => void;
   transactionType: TransactionType;
-  userId: string; // Adicionar userId
+  userId: string;
 }
 
 const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
@@ -91,34 +91,9 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   transactionType,
   userId,
 }) => {
-  const [incomeCategories, setIncomeCategories] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem("incomeCategories");
-      return stored ? JSON.parse(stored) : ["Salário", "Freela"];
-    }
-    return ["Salário", "Freela"];
-  });
-  const [expenseCategories, setExpenseCategories] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem("expenseCategories");
-      return stored ? JSON.parse(stored) : ["Dívidas", "Conta", "Aluguel", "Compra", "Lazer", "Viagem"];
-    }
-    return ["Dívidas", "Conta", "Aluguel", "Compra", "Lazer", "Viagem"];
-  });
+  const [categories, setCategories] = useState<string[]>([]); // Gerenciar categorias no estado
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("incomeCategories", JSON.stringify(incomeCategories));
-    }
-  }, [incomeCategories]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("expenseCategories", JSON.stringify(expenseCategories));
-    }
-  }, [expenseCategories]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -131,18 +106,40 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
       paymentMethod: "Débito",
       isInstallment: false,
       numberOfInstallments: 2,
-      isRecurring: false, // Default para não recorrente
+      isRecurring: false,
     },
   });
 
-  const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
+  // Fetch categories from Supabase
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!userId) {
+        setCategories([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("categories")
+        .select("name")
+        .eq("user_id", userId)
+        .eq("type", transactionType);
+
+      if (error) {
+        toast.error("Erro ao carregar categorias: " + error.message);
+        console.error("Erro ao carregar categorias:", error);
+      } else if (data) {
+        setCategories(data.map((cat) => cat.name));
+      }
+    };
+
+    fetchCategories();
+  }, [userId, transactionType]); // Recarrega quando o usuário ou tipo de transação muda
+
   const paymentMethod = form.watch("paymentMethod");
   const isInstallmentChecked = form.watch("isInstallment");
-  const isRecurringChecked = form.watch("isRecurring"); // Observar o estado de recorrência
+  const isRecurringChecked = form.watch("isRecurring");
   const totalAmount = form.watch("amount");
   const numberOfInstallments = form.watch("numberOfInstallments");
 
-  // Reset installment/recurring fields if conditions change
   useEffect(() => {
     if (transactionType === "income") {
       form.setValue("isInstallment", false);
@@ -156,26 +153,37 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     }
   }, [transactionType, paymentMethod, form]);
 
-  const handleAddNewCategory = () => {
+  const handleAddNewCategory = async () => {
     if (newCategoryName.trim() === "") {
       toast.error("O nome da categoria não pode ser vazio.");
       return;
     }
     const categoryToAdd = newCategoryName.trim();
-    if (currentCategories.includes(categoryToAdd)) {
+    if (categories.includes(categoryToAdd)) {
       toast.error("Esta categoria já existe.");
       return;
     }
 
-    if (transactionType === "income") {
-      setIncomeCategories((prev) => [...prev, categoryToAdd]);
-    } else {
-      setExpenseCategories((prev) => [...prev, categoryToAdd]);
+    if (!userId) {
+      toast.error("Usuário não autenticado. Não foi possível adicionar a categoria.");
+      return;
     }
-    form.setValue("category", categoryToAdd);
-    setNewCategoryName("");
-    setShowNewCategoryDialog(false);
-    toast.success(`Categoria '${categoryToAdd}' adicionada!`);
+
+    const { data, error } = await supabase
+      .from("categories")
+      .insert({ user_id: userId, name: categoryToAdd, type: transactionType })
+      .select();
+
+    if (error) {
+      toast.error("Erro ao adicionar categoria: " + error.message);
+      console.error("Erro ao adicionar categoria:", error);
+    } else if (data) {
+      setCategories((prev) => [...prev, categoryToAdd]);
+      form.setValue("category", categoryToAdd);
+      setNewCategoryName("");
+      setShowNewCategoryDialog(false);
+      toast.success(`Categoria '${categoryToAdd}' adicionada!`);
+    }
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -202,7 +210,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
         return;
       }
 
-      const recurringId = uuidv4(); // Gerar um ID para o grupo de parcelas
+      const recurringId = uuidv4();
       for (let i = 0; i < values.numberOfInstallments; i++) {
         const installmentDate = addMonths(values.date, i);
         const installmentDescription = `${values.description || ''} (Parcela ${i + 1}/${values.numberOfInstallments})`;
@@ -211,14 +219,14 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           description: installmentDescription,
           amount: finalInstallmentAmount,
           date: installmentDate.toISOString(),
-          is_recurring: true, // Marcar como recorrente
-          recurring_id: recurringId, // Associar ao ID de recorrência
+          is_recurring: true,
+          recurring_id: recurringId,
         });
       }
       toast.success(`${values.numberOfInstallments} parcelas adicionadas com sucesso!`);
     } else if (values.isRecurring) {
-      const recurringId = uuidv4(); // Gerar um ID para o grupo de recorrência
-      for (let i = 0; i < 12; i++) { // Criar para os próximos 12 meses
+      const recurringId = uuidv4();
+      for (let i = 0; i < 12; i++) {
         const recurringDate = addMonths(values.date, i);
         transactionsToCreate.push({
           ...baseTransaction,
@@ -233,7 +241,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
       toast.success("Transação adicionada com sucesso!");
     }
 
-    onAddTransaction(transactionsToCreate); // Enviar a lista de transações
+    onAddTransaction(transactionsToCreate);
     form.reset({
       category: "",
       amount: 0,
@@ -273,7 +281,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {currentCategories.map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -395,14 +403,14 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                 <FormControl>
                   <Input
                     type="text"
-                    placeholder={formatAmountDisplay(totalAmount / numberOfInstallments)} // Placeholder with calculated value
+                    placeholder={formatAmountDisplay(totalAmount / numberOfInstallments)}
                     value={field.value === undefined || field.value === 0 ? "" : formatAmountDisplay(field.value)}
                     onChange={(e) => {
                       const rawValue = e.target.value;
                       const cleanedValue = rawValue.replace(/\D/g, '');
                       
                       if (cleanedValue === '') {
-                        field.onChange(undefined); // Set to undefined if empty
+                        field.onChange(undefined);
                       } else {
                         const cents = parseInt(cleanedValue, 10);
                         field.onChange(cents / 100);
