@@ -1,18 +1,27 @@
 import React, { useRef } from "react";
+import ReactDOM from 'react-dom/client'; // Importar ReactDOM
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, FileText, FileDown } from "lucide-react"; // Adicionado FileText e FileDown
+import { FileSpreadsheet, FileText, FileDown, ChevronDown } from "lucide-react"; // Adicionado ChevronDown
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Importar componentes do DropdownMenu
 import { Transaction } from "@/types";
 import { formatCurrency, exportToCsv } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import ReportGenerator from "@/components/reports/ReportGenerator"; // Importar o novo componente
+import ReportGenerator from "@/components/reports/ReportGenerator";
 
 interface ExportButtonsProps {
-  allTransactions: Transaction[]; // Necessário para exportação anual
-  filteredTransactions: Transaction[]; // Já filtrado por mês
+  allTransactions: Transaction[];
+  filteredTransactions: Transaction[];
   totalIncome: number;
   totalExpense: number;
   balance: number;
@@ -31,8 +40,6 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
   selectedYear,
   selectedCurrency,
 }) => {
-  const reportRef = useRef<HTMLDivElement>(null);
-
   const getExpenseByCategoryData = (transactions: Transaction[]) => {
     const expenseByCategory = transactions
       .filter((t) => t.type === "expense")
@@ -133,19 +140,17 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
     tempDiv.style.top = '-9999px';
     document.body.appendChild(tempDiv);
 
-    // Render the React component into the temporary div
     const root = ReactDOM.createRoot(tempDiv);
     root.render(content);
 
-    // Wait for the component to render
-    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure rendering
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     if (tempDiv) {
       const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
+      const imgWidth = 210;
+      const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;
@@ -162,8 +167,8 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
       pdf.save(filename);
     }
 
-    root.unmount(); // Clean up React root
-    document.body.removeChild(tempDiv); // Remove temporary div
+    root.unmount();
+    document.body.removeChild(tempDiv);
   };
 
   const handleExportMonthlyPdf = async () => {
@@ -199,7 +204,6 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
     const root = ReactDOM.createRoot(tempDiv);
     root.render(content);
 
-    // Wait for the component to render
     setTimeout(() => {
       const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -289,7 +293,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
         link.click();
         document.body.removeChild(link);
       }
-    }, 100); // Small delay to ensure rendering
+    }, 100);
 
     root.unmount();
     document.body.removeChild(tempDiv);
@@ -324,27 +328,52 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Resumo Financeiro</CardTitle> {/* Título alterado */}
+        <CardTitle>Resumo Financeiro</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-4"> {/* Usar flex-wrap para melhor responsividade */}
-        <Button onClick={handleExportMonthlyCsv} className="w-full sm:w-auto" size="sm">
-          <FileSpreadsheet className="mr-2 h-4 w-4" /> CSV Mês
-        </Button>
-        <Button onClick={handleExportAnnualCsv} className="w-full sm:w-auto" size="sm">
-          <FileSpreadsheet className="mr-2 h-4 w-4" /> CSV Ano
-        </Button>
-        <Button onClick={handleExportMonthlyPdf} className="w-full sm:w-auto" size="sm">
-          <FileDown className="mr-2 h-4 w-4" /> PDF Mês
-        </Button>
-        <Button onClick={handleExportAnnualPdf} className="w-full sm:w-auto" size="sm">
-          <FileDown className="mr-2 h-4 w-4" /> PDF Ano
-        </Button>
-        <Button onClick={handleExportMonthlyHtml} className="w-full sm:w-auto" size="sm">
-          <FileText className="mr-2 h-4 w-4" /> HTML Mês
-        </Button>
-        <Button onClick={handleExportAnnualHtml} className="w-full sm:w-auto" size="sm">
-          <FileText className="mr-2 h-4 w-4" /> HTML Ano
-        </Button>
+      <CardContent className="flex flex-wrap gap-4">
+        {/* Dropdown para Resumo do Mês */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+              <FileDown className="mr-2 h-4 w-4" /> Resumo Mês <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Exportar Resumo Mensal</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExportMonthlyCsv}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportMonthlyPdf}>
+              <FileDown className="mr-2 h-4 w-4" /> PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportMonthlyHtml}>
+              <FileText className="mr-2 h-4 w-4" /> HTML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Dropdown para Resumo do Ano */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+              <FileDown className="mr-2 h-4 w-4" /> Resumo Ano <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Exportar Resumo Anual</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExportAnnualCsv}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportAnnualPdf}>
+              <FileDown className="mr-2 h-4 w-4" /> PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportAnnualHtml}>
+              <FileText className="mr-2 h-4 w-4" /> HTML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardContent>
     </Card>
   );
