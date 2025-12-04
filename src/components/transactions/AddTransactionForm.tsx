@@ -31,7 +31,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, formatAmountDisplay } from "@/lib/utils"; // Importar formatAmountDisplay
 import { CalendarIcon } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -224,8 +224,48 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
             <FormItem>
               <FormLabel>{paymentMethod === "Crédito" && isInstallmentChecked ? "Valor da Parcela" : "Valor"}</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" {...field} />
+                <Input
+                  type="text" // Alterado para text para permitir formatação personalizada
+                  value={field.value === 0 ? "" : formatAmountDisplay(field.value)}
+                  onChange={(e) => {
+                    const rawValue = e.target.value;
+                    // Remove pontos de milhar e substitui vírgula por ponto para conversão numérica
+                    const cleanedValue = rawValue.replace(/\./g, '').replace(',', '.');
+                    const numericValue = parseFloat(cleanedValue);
+                    if (!isNaN(numericValue)) {
+                      field.onChange(numericValue);
+                    } else if (cleanedValue === '') {
+                      field.onChange(0); // Permite limpar o input
+                    }
+                  }}
+                />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Payment Method Field */}
+        <FormField
+          control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Método de Pagamento</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o método de pagamento" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Débito">Débito</SelectItem>
+                  <SelectItem value="Crédito">Crédito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Pix">Pix</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -267,32 +307,6 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   />
                 </PopoverContent>
               </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Payment Method Field */}
-        <FormField
-          control={form.control}
-          name="paymentMethod"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Método de Pagamento</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o método de pagamento" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Débito">Débito</SelectItem>
-                  <SelectItem value="Crédito">Crédito</SelectItem>
-                  <SelectItem value="Boleto">Boleto</SelectItem>
-                  <SelectItem value="Pix">Pix</SelectItem>
-                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                </SelectContent>
-              </Select>
               <FormMessage />
             </FormItem>
           )}

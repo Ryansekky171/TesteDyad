@@ -13,3 +13,12 @@ export function formatCurrency(amount: number, currency: string = "BRL", locale:
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+export function formatAmountDisplay(amount: number, locale: string = "pt-BR"): string {
+  if (isNaN(amount) || amount === 0) return "";
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(amount);
+}
