@@ -86,6 +86,10 @@ interface AddTransactionFormProps {
   userId: string;
 }
 
+// Categorias padrão
+const DEFAULT_INCOME_CATEGORIES = ["Salário", "Freelance", "Investimentos", "Presente", "Outros"];
+const DEFAULT_EXPENSE_CATEGORIES = ["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Contas", "Compras", "Dívidas", "Outros"];
+
 const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   onAddTransaction,
   transactionType,
@@ -126,8 +130,13 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
       if (error) {
         toast.error("Erro ao carregar categorias: " + error.message);
         console.error("Erro ao carregar categorias:", error);
-      } else if (data) {
+        // Fallback to default categories if there's an error
+        setCategories(transactionType === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES);
+      } else if (data && data.length > 0) {
         setCategories(data.map((cat) => cat.name));
+      } else {
+        // If no user-specific categories, provide defaults
+        setCategories(transactionType === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES);
       }
     };
 
