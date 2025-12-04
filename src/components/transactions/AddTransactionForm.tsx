@@ -31,7 +31,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatAmountDisplay } from "@/lib/utils"; // Importar formatAmountDisplay
+import { cn, formatAmountDisplay } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -139,7 +139,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
-      const installmentAmount = values.amount;
+      const installmentAmount = values.amount; // 'amount' já é o valor da parcela
       for (let i = 0; i < values.numberOfInstallments; i++) {
         const installmentDate = addMonths(values.date, i);
         const installmentDescription = `${values.description} (Parcela ${i + 1}/${values.numberOfInstallments})`;
@@ -273,47 +273,6 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           )}
         />
 
-        {/* Date Field */}
-        <FormField
-          control={form.control}
-          name="date"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Data</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP", { locale: ptBR })
-                      ) : (
-                        <span>Selecione uma data</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         {/* Installment Options (conditionally rendered) */}
         {paymentMethod === "Crédito" && (
           <>
@@ -354,6 +313,47 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
             )}
           </>
         )}
+
+        {/* Date Field */}
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Data</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP", { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Description Field (last) */}
         <FormField
