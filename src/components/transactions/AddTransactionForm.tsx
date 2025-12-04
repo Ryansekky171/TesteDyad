@@ -41,14 +41,14 @@ import { toast } from "sonner";
 const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
   amount: z.coerce.number().min(0.01, "O valor total deve ser positivo."), // Now represents total amount
-  installmentAmount: z.coerce.number().min(0.01, "O valor da parcela deve ser positivo.").optional(), // New field for installment amount
+  installmentAmount: z.coerce.number().optional(), // Made truly optional
   date: z.date({ required_error: "A data é obrigatória." }),
   paymentMethod: z.enum(["Débito", "Crédito", "Boleto", "Pix", "Dinheiro"], {
     required_error: "O método de pagamento é obrigatório.",
   }),
   isInstallment: z.boolean().optional(),
   numberOfInstallments: z.coerce.number().min(2, "Mínimo de 2 parcelas.").optional(),
-  description: z.string().min(1, "A descrição é obrigatória."),
+  description: z.string().optional().default(""), // Made optional and defaults to empty string
 }).superRefine((data, ctx) => {
   if (data.paymentMethod === "Crédito" && data.isInstallment) {
     if (!data.numberOfInstallments || data.numberOfInstallments < 2) {
@@ -58,16 +58,26 @@ const formSchema = z.object({
         path: ["numberOfInstallments"],
       });
     }
-    // If installmentAmount is provided, it must be less than or equal to total amount
-    if (data.installmentAmount && data.installmentAmount > data.amount) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "O valor da parcela não pode ser maior que o valor total.",
-        path: ["installmentAmount"],
-      });
+    // If installmentAmount is provided, it must be positive and less than or equal to total amount
+    if (data.installmentAmount !== undefined && data.installmentAmount !== null) {
+      if (data.installmentAmount <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "O valor da parcela deve ser positivo se informado.",
+          path: ["installmentAmount"],
+        });
+      }
+      if (data.installmentAmount > data.amount) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "O valor da parcela não pode ser maior que o valor total.",
+          path: ["installmentAmount"],
+        });
+      }
     }
     // If installmentAmount is not provided, ensure total amount is divisible by number of installments
-    if (!data.installmentAmount && data.numberOfInstallments && data.amount % data.numberOfInstallments !== 0) {
+    // This is now a suggestion, not a hard block, as installmentAmount is optional
+    if ((data.installmentAmount === undefined || data.installmentAmount === null || data.installmentAmount === 0) && data.numberOfInstallments && data.amount % data.numberOfInstallments !== 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "O valor total não é divisível igualmente pelo número de parcelas. Considere informar o valor da parcela.",
@@ -120,7 +130,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     defaultValues: {
       category: "",
       amount: 0,
-      installmentAmount: 0, // Initialize new field
+      installmentAmount: undefined, // Set to undefined for truly optional
       description: "",
       date: new Date(),
       paymentMethod: "Débito",
@@ -159,7 +169,8 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
-      const finalInstallmentAmount = values.installmentAmount && values.installmentAmount > 0
+      // Use provided installmentAmount if positive, otherwise calculate
+      const finalInstallmentAmount = (values.installmentAmount && values.installmentAmount > 0)
         ? values.installmentAmount
         : (values.amount / values.numberOfInstallments);
 
@@ -170,7 +181,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
 
       for (let i = 0; i < values.numberOfInstallments; i++) {
         const installmentDate = addMonths(values.date, i);
-        const installmentDescription = `${values.description} (Parcela ${i + 1}/${values.numberOfInstallments})`;
+        const installmentDescription = `${values.description || ''} (Parcela ${i + 1}/${values.numberOfInstallments})`;
         onAddTransaction({
           description: installmentDescription,
           amount: finalInstallmentAmount, // Use the calculated or provided installment amount
@@ -183,7 +194,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
       toast.success(`${values.numberOfInstallments} parcelas adicionadas com sucesso!`);
     } else {
       onAddTransaction({
-        description: values.description,
+        description: values.description || '', // Ensure description is a string
         amount: values.amount, // Use total amount for non-installment transactions
         type: transactionType,
         category: values.category,
@@ -195,7 +206,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     form.reset({
       category: "",
       amount: 0,
-      installmentAmount: 0,
+      installmentAmount: undefined,
       description: "",
       date: new Date(),
       paymentMethod: "Débito",
@@ -353,13 +364,13 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   <Input
                     type="text"
                     placeholder={formatAmountDisplay(totalAmount / numberOfInstallments)} // Placeholder with calculated value
-                    value={field.value === 0 ? "" : formatAmountDisplay(field.value)}
+                    value={field.value === undefined || field.value === 0 ? "" : formatAmountDisplay(field.value)}
                     onChange={(e) => {
                       const rawValue = e.target.value;
                       const cleanedValue = rawValue.replace(/\D/g, '');
                       
                       if (cleanedValue === '') {
-                        field.onChange(0);
+                        field.onChange(undefined); // Set to undefined if empty
                       } else {
                         const cents = parseInt(cleanedValue, 10);
                         field.onChange(cents / 100);
@@ -423,7 +434,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descrição</FormLabel>
+              <FormLabel>Descrição (opcional)</FormLabel>
               <FormControl>
                 <Input placeholder="Aluguel, Salário, Compras..." {...field} />
               </FormControl>
