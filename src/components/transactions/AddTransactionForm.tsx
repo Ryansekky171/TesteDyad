@@ -229,13 +229,15 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   value={field.value === 0 ? "" : formatAmountDisplay(field.value)}
                   onChange={(e) => {
                     const rawValue = e.target.value;
-                    // Remove pontos de milhar e substitui vírgula por ponto para conversão numérica
-                    const cleanedValue = rawValue.replace(/\./g, '').replace(',', '.');
-                    const numericValue = parseFloat(cleanedValue);
-                    if (!isNaN(numericValue)) {
-                      field.onChange(numericValue);
-                    } else if (cleanedValue === '') {
-                      field.onChange(0); // Permite limpar o input
+                    // Remove todos os caracteres não numéricos
+                    const cleanedValue = rawValue.replace(/\D/g, ''); // Keep only digits
+                    
+                    if (cleanedValue === '') {
+                      field.onChange(0); // If empty, set amount to 0
+                    } else {
+                      // Convert to integer (representing cents) and then to actual amount
+                      const cents = parseInt(cleanedValue, 10);
+                      field.onChange(cents / 100);
                     }
                   }}
                 />
