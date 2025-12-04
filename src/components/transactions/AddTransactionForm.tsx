@@ -37,6 +37,7 @@ import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid"; // Importar uuidv4
 
 const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
@@ -49,8 +50,10 @@ const formSchema = z.object({
   isInstallment: z.boolean().optional(),
   numberOfInstallments: z.coerce.number().min(2, "Mínimo de 2 parcelas.").optional(),
   description: z.string().optional().default(""), // Made optional and defaults to empty string
+  isRecurring: z.boolean().optional(), // Novo campo para recorrência
 }).superRefine((data, ctx) => {
-  if (data.paymentMethod === "Crédito" && data.isInstallment) {
+  // Lógica de validação para parcelamento (apenas para despesas de crédito)
+  if (data.paymentMethod === "Crédito" && data.isInstallment && data.isInstallment !== undefined) {
     if (!data.numberOfInstallments || data.numberOfInstallments < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -58,7 +61,6 @@ const formSchema = z.object({
         path: ["numberOfInstallments"],
       });
     }
-    // If installmentAmount is provided, it must be positive and less than or equal to total amount
     if (data.installmentAmount !== undefined && data.installmentAmount !== null) {
       if (data.installmentAmount <= 0) {
         ctx.addIssue({
@@ -75,19 +77,19 @@ const formSchema = z.object({
         });
       }
     }
-    // Removed the validation for non-divisible amounts.
-    // The system will now simply calculate and round the installment amount.
   }
 });
 
 interface AddTransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  onAddTransaction: (transaction: Omit<Transaction, "id"> | Omit<Transaction, "id">[]) => void; // Pode receber uma ou várias transações
   transactionType: TransactionType;
+  userId: string; // Adicionar userId
 }
 
 const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   onAddTransaction,
   transactionType,
+  userId,
 }) => {
   const [incomeCategories, setIncomeCategories] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -123,20 +125,36 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     defaultValues: {
       category: "",
       amount: 0,
-      installmentAmount: undefined, // Set to undefined for truly optional
+      installmentAmount: undefined,
       description: "",
       date: new Date(),
       paymentMethod: "Débito",
       isInstallment: false,
       numberOfInstallments: 2,
+      isRecurring: false, // Default para não recorrente
     },
   });
 
   const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
   const paymentMethod = form.watch("paymentMethod");
   const isInstallmentChecked = form.watch("isInstallment");
+  const isRecurringChecked = form.watch("isRecurring"); // Observar o estado de recorrência
   const totalAmount = form.watch("amount");
   const numberOfInstallments = form.watch("numberOfInstallments");
+
+  // Reset installment/recurring fields if conditions change
+  useEffect(() => {
+    if (transactionType === "income") {
+      form.setValue("isInstallment", false);
+      form.setValue("numberOfInstallments", 2);
+      form.setValue("installmentAmount", undefined);
+    }
+    if (paymentMethod !== "Crédito") {
+      form.setValue("isInstallment", false);
+      form.setValue("numberOfInstallments", 2);
+      form.setValue("installmentAmount", undefined);
+    }
+  }, [transactionType, paymentMethod, form]);
 
   const handleAddNewCategory = () => {
     if (newCategoryName.trim() === "") {
@@ -161,13 +179,22 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
-      // Use provided installmentAmount if positive, otherwise calculate
+    const transactionsToCreate: Omit<Transaction, "id">[] = [];
+    const baseTransaction: Omit<Transaction, "id"> = {
+      user_id: userId,
+      description: values.description || '',
+      amount: values.amount,
+      type: transactionType,
+      category: values.category,
+      date: values.date.toISOString(),
+      paymentMethod: values.paymentMethod,
+    };
+
+    if (transactionType === "expense" && values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
       let finalInstallmentAmount = (values.installmentAmount && values.installmentAmount > 0)
         ? values.installmentAmount
         : (values.amount / values.numberOfInstallments);
 
-      // Round to two decimal places
       finalInstallmentAmount = Math.round(finalInstallmentAmount * 100) / 100;
 
       if (finalInstallmentAmount <= 0) {
@@ -175,30 +202,38 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
         return;
       }
 
+      const recurringId = uuidv4(); // Gerar um ID para o grupo de parcelas
       for (let i = 0; i < values.numberOfInstallments; i++) {
         const installmentDate = addMonths(values.date, i);
         const installmentDescription = `${values.description || ''} (Parcela ${i + 1}/${values.numberOfInstallments})`;
-        onAddTransaction({
+        transactionsToCreate.push({
+          ...baseTransaction,
           description: installmentDescription,
-          amount: finalInstallmentAmount, // Use the calculated or provided installment amount
-          type: transactionType,
-          category: values.category,
+          amount: finalInstallmentAmount,
           date: installmentDate.toISOString(),
-          paymentMethod: values.paymentMethod,
+          is_recurring: true, // Marcar como recorrente
+          recurring_id: recurringId, // Associar ao ID de recorrência
         });
       }
       toast.success(`${values.numberOfInstallments} parcelas adicionadas com sucesso!`);
+    } else if (values.isRecurring) {
+      const recurringId = uuidv4(); // Gerar um ID para o grupo de recorrência
+      for (let i = 0; i < 12; i++) { // Criar para os próximos 12 meses
+        const recurringDate = addMonths(values.date, i);
+        transactionsToCreate.push({
+          ...baseTransaction,
+          date: recurringDate.toISOString(),
+          is_recurring: true,
+          recurring_id: recurringId,
+        });
+      }
+      toast.success(`Transação adicionada e repetida para os próximos 12 meses!`);
     } else {
-      onAddTransaction({
-        description: values.description || '', // Ensure description is a string
-        amount: values.amount, // Use total amount for non-installment transactions
-        type: transactionType,
-        category: values.category,
-        date: values.date.toISOString(),
-        paymentMethod: values.paymentMethod,
-      });
+      transactionsToCreate.push(baseTransaction);
       toast.success("Transação adicionada com sucesso!");
     }
+
+    onAddTransaction(transactionsToCreate); // Enviar a lista de transações
     form.reset({
       category: "",
       amount: 0,
@@ -208,6 +243,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
       paymentMethod: "Débito",
       isInstallment: false,
       numberOfInstallments: 2,
+      isRecurring: false,
     });
   };
 
@@ -307,8 +343,8 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           )}
         />
 
-        {/* Installment Checkbox (conditionally rendered) */}
-        {paymentMethod === "Crédito" && (
+        {/* Installment Checkbox (conditionally rendered for expense and Credit) */}
+        {transactionType === "expense" && paymentMethod === "Crédito" && (
           <FormField
             control={form.control}
             name="isInstallment"
@@ -332,7 +368,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
         )}
 
         {/* Number of Installments Field (conditionally rendered) */}
-        {paymentMethod === "Crédito" && isInstallmentChecked && (
+        {transactionType === "expense" && paymentMethod === "Crédito" && isInstallmentChecked && (
           <FormField
             control={form.control}
             name="numberOfInstallments"
@@ -349,7 +385,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
         )}
 
         {/* Installment Amount Field (NEW, conditionally rendered) */}
-        {paymentMethod === "Crédito" && isInstallmentChecked && numberOfInstallments && (
+        {transactionType === "expense" && paymentMethod === "Crédito" && isInstallmentChecked && numberOfInstallments && (
           <FormField
             control={form.control}
             name="installmentAmount"
@@ -378,6 +414,30 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   Se vazio, será calculado: {formatAmountDisplay(Math.round((totalAmount / numberOfInstallments) * 100) / 100)}
                 </FormDescription>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Recurring Checkbox (conditionally rendered if not installment) */}
+        {!(transactionType === "expense" && paymentMethod === "Crédito" && isInstallmentChecked) && (
+          <FormField
+            control={form.control}
+            name="isRecurring"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Repetir todo mês</FormLabel>
+                  <FormDescription>
+                    Marque para adicionar esta transação para os próximos 12 meses.
+                  </FormDescription>
+                </div>
               </FormItem>
             )}
           />

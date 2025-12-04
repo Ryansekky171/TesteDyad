@@ -10,4 +10,6 @@ export interface Transaction {
   category: string;
   date: string;
   paymentMethod: PaymentMethod;
+  is_recurring?: boolean; // Novo campo para indicar se é uma transação recorrente
+  recurring_id?: string; // Novo campo para agrupar transações recorrentes
 }

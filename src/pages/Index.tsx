@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Adicionado useCallback
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import Header from "@/components/layout/Header";
 import TransactionList from "@/components/transactions/TransactionList";
@@ -11,7 +11,8 @@ import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { supabase } from "@/lib/supabase"; // Importar supabase
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner"; // Importar toast para notificações
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -24,7 +25,8 @@ const Index = () => {
     return "BRL";
   });
   const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense");
-  const [userEmail, setUserEmail] = useState<string | undefined>(undefined); // Estado para o email do usuário
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [userId, setUserId] = useState<string | undefined>(undefined); // Novo estado para o ID do usuário
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,23 +34,102 @@ const Index = () => {
     }
   }, [selectedCurrency]);
 
-  // Efeito para buscar o email do usuário logado
+  // Efeito para buscar o email e o ID do usuário logado
   useEffect(() => {
-    const fetchUserEmail = async () => {
+    const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email);
+        setUserId(user.id);
+      } else {
+        setUserEmail(undefined);
+        setUserId(undefined);
       }
     };
-    fetchUserEmail();
+    fetchUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUserEmail(session.user.email);
+        setUserId(session.user.id);
+      } else {
+        setUserEmail(undefined);
+        setUserId(undefined);
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  const handleAddTransaction = (newTransactionData: Omit<Transaction, "id">) => {
-    const newTransaction: Transaction = {
-      ...newTransactionData,
-      id: uuidv4(),
-    };
-    setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
+  // Função para buscar transações do Supabase
+  const fetchTransactions = useCallback(async () => {
+    if (!userId) {
+      setTransactions([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false });
+
+    if (error) {
+      toast.error("Erro ao carregar transações: " + error.message);
+      console.error("Erro ao carregar transações:", error);
+    } else {
+      setTransactions(data as Transaction[]);
+    }
+  }, [userId]);
+
+  // Carregar transações quando o userId mudar
+  useEffect(() => {
+    fetchTransactions();
+  }, [userId, fetchTransactions]);
+
+  const handleAddTransaction = async (newTransactionData: Omit<Transaction, "id"> | Omit<Transaction, "id">[]) => {
+    if (!userId) {
+      toast.error("Usuário não autenticado. Não foi possível adicionar a transação.");
+      return;
+    }
+
+    const transactionsToAdd = Array.isArray(newTransactionData) ? newTransactionData : [newTransactionData];
+    const transactionsWithIds = transactionsToAdd.map(t => ({ ...t, id: uuidv4(), user_id: userId }));
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert(transactionsWithIds)
+      .select();
+
+    if (error) {
+      toast.error("Erro ao adicionar transação: " + error.message);
+      console.error("Erro ao adicionar transação:", error);
+    } else if (data) {
+      setTransactions((prevTransactions) => [...data as Transaction[], ...prevTransactions]);
+      toast.success("Transação(ões) adicionada(s) com sucesso!");
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (!userId) {
+      toast.error("Usuário não autenticado. Não foi possível excluir a transação.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId); // Garantir que o usuário só pode excluir suas próprias transações
+
+    if (error) {
+      toast.error("Erro ao excluir transação: " + error.message);
+      console.error("Erro ao excluir transação:", error);
+    } else {
+      setTransactions((prevTransactions) => prevTransactions.filter((t) => t.id !== id));
+      toast.success("Transação excluída com sucesso!");
+    }
   };
 
   const handleDateChange = (month: number, year: number) => {
@@ -76,7 +157,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} userEmail={userEmail} /> {/* Passar userEmail */}
+      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} userEmail={userEmail} />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <MonthYearPicker
@@ -139,7 +220,7 @@ const Index = () => {
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
             <CardContent className="max-h-[400px] overflow-y-auto">
-              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} />
+              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} onDeleteTransaction={handleDeleteTransaction} />
             </CardContent>
           </Card>
         </div>
@@ -153,7 +234,11 @@ const Index = () => {
               <CardTitle>Adicionar Nova Transação</CardTitle>
             </CardHeader>
             <CardContent>
-              <AddTransactionForm onAddTransaction={handleAddTransaction} transactionType={selectedTransactionType} />
+              {userId ? (
+                <AddTransactionForm onAddTransaction={handleAddTransaction} transactionType={selectedTransactionType} userId={userId} />
+              ) : (
+                <p className="text-center text-muted-foreground">Faça login para adicionar transações.</p>
+              )}
             </CardContent>
           </Card>
         </div>
