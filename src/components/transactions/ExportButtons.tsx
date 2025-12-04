@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react"; // Alterado de Download para FileSpreadsheet
 import { Transaction } from "@/types";
 import { formatCurrency, exportToCsv } from "@/lib/utils";
 import { format } from "date-fns";
@@ -104,11 +104,11 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
         <CardTitle>Exportar Dados</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col sm:flex-row gap-4">
-        <Button onClick={handleExportMonthly} className="w-full sm:w-auto">
-          <Download className="mr-2 h-4 w-4" /> Exportar Mês
+        <Button onClick={handleExportMonthly} className="w-full sm:w-auto" size="sm"> {/* Adicionado size="sm" */}
+          <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Mês
         </Button>
-        <Button onClick={handleExportAnnual} className="w-full sm:w-auto">
-          <Download className="mr-2 h-4 w-4" /> Exportar Ano
+        <Button onClick={handleExportAnnual} className="w-full sm:w-auto" size="sm"> {/* Adicionado size="sm" */}
+          <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Ano
         </Button>
       </CardContent>
     </Card>
