@@ -105,7 +105,7 @@ const Index = () => {
             <CardHeader>
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="max-h-[400px] overflow-y-auto"> {/* Adicionado rolagem interna aqui */}
               <TransactionList transactions={filteredTransactions} />
             </CardContent>
           </Card>
