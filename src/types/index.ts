@@ -3,6 +3,7 @@ export type PaymentMethod = "Débito" | "Crédito" | "Boleto" | "Pix" | "Dinheir
 
 export interface Transaction {
   id: string;
+  user_id: string; // Adicionado para associar a transação a um usuário
   description: string;
   amount: number;
   type: TransactionType;
