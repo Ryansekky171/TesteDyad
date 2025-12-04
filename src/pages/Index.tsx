@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import TransactionList from "@/components/transactions/TransactionList";
 import AddTransactionForm from "@/components/transactions/AddTransactionForm";
 import MonthYearPicker from "@/components/transactions/MonthYearPicker";
+import TransactionCharts from "@/components/transactions/TransactionCharts"; // Importar o novo componente de gráficos
 import { Transaction } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,11 +102,14 @@ const Index = () => {
             </Card>
           </div>
 
+          {/* Novo componente de gráficos */}
+          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} />
+
           <Card>
             <CardHeader>
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[400px] overflow-y-auto"> {/* Adicionado rolagem interna aqui */}
+            <CardContent className="max-h-[400px] overflow-y-auto">
               <TransactionList transactions={filteredTransactions} />
             </CardContent>
           </Card>
