@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import Header from "@/components/layout/Header";
 import TransactionList from "@/components/transactions/TransactionList";
 import AddTransactionForm from "@/components/transactions/AddTransactionForm";
+import MonthYearPicker from "@/components/transactions/MonthYearPicker";
 import { Transaction } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // 0-indexed
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const handleAddTransaction = (newTransactionData: Omit<Transaction, "id" | "date">) => {
     const newTransaction: Transaction = {
@@ -19,11 +22,24 @@ const Index = () => {
     setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
   };
 
-  const totalIncome = transactions
+  const handleDateChange = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+  };
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    const transactionDate = new Date(transaction.date);
+    return (
+      transactionDate.getMonth() === selectedMonth &&
+      transactionDate.getFullYear() === selectedYear
+    );
+  });
+
+  const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpense = transactions
+  const totalExpense = filteredTransactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -34,6 +50,12 @@ const Index = () => {
       <Header />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <MonthYearPicker
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            onDateChange={handleDateChange}
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -84,7 +106,7 @@ const Index = () => {
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
             <CardContent>
-              <TransactionList transactions={transactions} />
+              <TransactionList transactions={filteredTransactions} />
             </CardContent>
           </Card>
         </div>
