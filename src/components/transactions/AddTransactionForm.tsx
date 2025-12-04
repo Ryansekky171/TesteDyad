@@ -75,15 +75,8 @@ const formSchema = z.object({
         });
       }
     }
-    // If installmentAmount is not provided, ensure total amount is divisible by number of installments
-    // This is now a suggestion, not a hard block, as installmentAmount is optional
-    if ((data.installmentAmount === undefined || data.installmentAmount === null || data.installmentAmount === 0) && data.numberOfInstallments && data.amount % data.numberOfInstallments !== 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "O valor total não é divisível igualmente pelo número de parcelas. Considere informar o valor da parcela.",
-        path: ["amount"],
-      });
-    }
+    // Removed the validation for non-divisible amounts.
+    // The system will now simply calculate and round the installment amount.
   }
 });
 
@@ -170,9 +163,12 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
       // Use provided installmentAmount if positive, otherwise calculate
-      const finalInstallmentAmount = (values.installmentAmount && values.installmentAmount > 0)
+      let finalInstallmentAmount = (values.installmentAmount && values.installmentAmount > 0)
         ? values.installmentAmount
         : (values.amount / values.numberOfInstallments);
+
+      // Round to two decimal places
+      finalInstallmentAmount = Math.round(finalInstallmentAmount * 100) / 100;
 
       if (finalInstallmentAmount <= 0) {
         toast.error("O valor da parcela calculado é inválido. Verifique o valor total e o número de parcelas.");
@@ -379,7 +375,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
                   />
                 </FormControl>
                 <FormDescription>
-                  Se vazio, será calculado: {formatAmountDisplay(totalAmount / numberOfInstallments)}
+                  Se vazio, será calculado: {formatAmountDisplay(Math.round((totalAmount / numberOfInstallments) * 100) / 100)}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
