@@ -4,15 +4,29 @@ import Header from "@/components/layout/Header";
 import TransactionList from "@/components/transactions/TransactionList";
 import AddTransactionForm from "@/components/transactions/AddTransactionForm";
 import MonthYearPicker from "@/components/transactions/MonthYearPicker";
-import TransactionCharts from "@/components/transactions/TransactionCharts"; // Importar o novo componente de gráficos
+import TransactionCharts from "@/components/transactions/TransactionCharts";
 import { Transaction } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils"; // Importar a nova utilidade
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // 0-indexed
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
+    // Inicializa do localStorage ou padrão para BRL
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("selectedCurrency") || "BRL";
+    }
+    return "BRL";
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("selectedCurrency", selectedCurrency);
+    }
+  }, [selectedCurrency]);
 
   const handleAddTransaction = (newTransactionData: Omit<Transaction, "id" | "date">) => {
     const newTransaction: Transaction = {
@@ -48,7 +62,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
+      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} /> {/* Passa props de moeda */}
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <MonthYearPicker
@@ -65,10 +79,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(totalIncome)}
+                  {formatCurrency(totalIncome, selectedCurrency)} {/* Usa formatCurrency */}
                 </div>
               </CardContent>
             </Card>
@@ -79,10 +90,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(totalExpense)}
+                  {formatCurrency(totalExpense, selectedCurrency)} {/* Usa formatCurrency */}
                 </div>
               </CardContent>
             </Card>
@@ -93,24 +101,20 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(balance)}
+                  {formatCurrency(balance, selectedCurrency)} {/* Usa formatCurrency */}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Novo componente de gráficos */}
-          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} />
+          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} /> {/* Passa prop de moeda */}
 
           <Card>
             <CardHeader>
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
             <CardContent className="max-h-[400px] overflow-y-auto">
-              <TransactionList transactions={filteredTransactions} />
+              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} /> {/* Passa prop de moeda */}
             </CardContent>
           </Card>
         </div>

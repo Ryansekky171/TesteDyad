@@ -11,12 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Transaction, TransactionType } from "@/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatCurrency } from "@/lib/utils"; // Importar formatCurrency
 
 interface TransactionListProps {
   transactions: Transaction[];
+  selectedCurrency: string; // Adicionar prop selectedCurrency
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, selectedCurrency }) => {
   return (
     <div className="rounded-md border overflow-hidden">
       <Table>
@@ -49,10 +51,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
                     transaction.type === "income" ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(transaction.amount)}
+                  {formatCurrency(transaction.amount, selectedCurrency)} {/* Usar formatCurrency */}
                 </TableCell>
                 <TableCell className="text-center">
                   <Badge

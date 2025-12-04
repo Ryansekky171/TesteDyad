@@ -13,11 +13,13 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Transaction } from "@/types";
+import { formatCurrency } from "@/lib/utils"; // Importar formatCurrency
 
 interface TransactionChartsProps {
   transactions: Transaction[];
   totalIncome: number;
   totalExpense: number;
+  selectedCurrency: string; // Adicionar prop selectedCurrency
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28DFF", "#FF6666", "#66CCFF"];
@@ -26,6 +28,7 @@ const TransactionCharts: React.FC<TransactionChartsProps> = ({
   transactions,
   totalIncome,
   totalExpense,
+  selectedCurrency,
 }) => {
   // Data for Expense by Category Pie Chart
   const expenseByCategory = transactions
@@ -73,7 +76,7 @@ const TransactionCharts: React.FC<TransactionChartsProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value as number)} />
+                <Tooltip formatter={(value) => formatCurrency(value as number, selectedCurrency)} /> {/* Usar formatCurrency */}
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -91,8 +94,8 @@ const TransactionCharts: React.FC<TransactionChartsProps> = ({
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={barChartData}>
               <XAxis dataKey="name" />
-              <YAxis formatter={(value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value as number)} />
-              <Tooltip formatter={(value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value as number)} />
+              <YAxis formatter={(value) => formatCurrency(value as number, selectedCurrency)} /> {/* Usar formatCurrency */}
+              <Tooltip formatter={(value) => formatCurrency(value as number, selectedCurrency)} /> {/* Usar formatCurrency */}
               <Legend />
               <Bar dataKey="Receitas" fill="#22C55E" /> {/* Green for income */}
               <Bar dataKey="Despesas" fill="#EF4444" /> {/* Red for expense */}
