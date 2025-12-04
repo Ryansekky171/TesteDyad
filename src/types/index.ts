@@ -1,4 +1,5 @@
 export type TransactionType = "income" | "expense";
+export type PaymentMethod = "Débito" | "Crédito" | "Boleto" | "Pix" | "Dinheiro";
 
 export interface Transaction {
   id: string;
@@ -7,4 +8,5 @@ export interface Transaction {
   type: TransactionType;
   category: string;
   date: string;
+  paymentMethod: PaymentMethod;
 }

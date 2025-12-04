@@ -11,6 +11,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import {
   Select,
@@ -26,19 +27,41 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Transaction, TransactionType } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { format, addMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { toast } from "sonner";
 
 const formSchema = z.object({
-  description: z.string().min(1, "A descrição é obrigatória."),
-  amount: z.coerce.number().min(0.01, "O valor deve ser positivo."),
   category: z.string().min(1, "A categoria é obrigatória."),
+  amount: z.coerce.number().min(0.01, "O valor deve ser positivo."),
+  date: z.date({ required_error: "A data é obrigatória." }),
+  paymentMethod: z.enum(["Débito", "Crédito", "Boleto", "Pix", "Dinheiro"], {
+    required_error: "O método de pagamento é obrigatório.",
+  }),
+  isInstallment: z.boolean().optional(),
+  numberOfInstallments: z.coerce.number().min(2, "Mínimo de 2 parcelas.").optional(),
+  description: z.string().min(1, "A descrição é obrigatória."),
+}).superRefine((data, ctx) => {
+  if (data.paymentMethod === "Crédito" && data.isInstallment) {
+    if (!data.numberOfInstallments || data.numberOfInstallments < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Número de parcelas é obrigatório e deve ser no mínimo 2 para parcelamento.",
+        path: ["numberOfInstallments"],
+      });
+    }
+  }
 });
 
 interface AddTransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id" | "date">) => void;
+  onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
   transactionType: TransactionType;
 }
 
@@ -78,13 +101,19 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: "",
-      amount: 0,
       category: "",
+      amount: 0,
+      description: "",
+      date: new Date(),
+      paymentMethod: "Débito",
+      isInstallment: false,
+      numberOfInstallments: 2,
     },
   });
 
   const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
+  const paymentMethod = form.watch("paymentMethod");
+  const isInstallmentChecked = form.watch("isInstallment");
 
   const handleAddNewCategory = () => {
     if (newCategoryName.trim() === "") {
@@ -109,40 +138,47 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onAddTransaction({ ...values, type: transactionType });
-    form.reset();
-    toast.success("Transação adicionada com sucesso!");
+    if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
+      const installmentAmount = values.amount;
+      for (let i = 0; i < values.numberOfInstallments; i++) {
+        const installmentDate = addMonths(values.date, i);
+        const installmentDescription = `${values.description} (Parcela ${i + 1}/${values.numberOfInstallments})`;
+        onAddTransaction({
+          description: installmentDescription,
+          amount: installmentAmount,
+          type: transactionType,
+          category: values.category,
+          date: installmentDate.toISOString(),
+          paymentMethod: values.paymentMethod,
+        });
+      }
+      toast.success(`${values.numberOfInstallments} parcelas adicionadas com sucesso!`);
+    } else {
+      onAddTransaction({
+        description: values.description,
+        amount: values.amount,
+        type: transactionType,
+        category: values.category,
+        date: values.date.toISOString(),
+        paymentMethod: values.paymentMethod,
+      });
+      toast.success("Transação adicionada com sucesso!");
+    }
+    form.reset({
+      category: "",
+      amount: 0,
+      description: "",
+      date: new Date(),
+      paymentMethod: "Débito",
+      isInstallment: false,
+      numberOfInstallments: 2,
+    });
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descrição</FormLabel>
-              <FormControl>
-                <Input placeholder="Aluguel, Salário, Compras..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Valor</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.01" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Category Field */}
         <FormField
           control={form.control}
           name="category"
@@ -179,6 +215,145 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
             </FormItem>
           )}
         />
+
+        {/* Amount Field */}
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{paymentMethod === "Crédito" && isInstallmentChecked ? "Valor da Parcela" : "Valor"}</FormLabel>
+              <FormControl>
+                <Input type="number" step="0.01" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Date Field */}
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Data</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP", { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Payment Method Field */}
+        <FormField
+          control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Método de Pagamento</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o método de pagamento" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Débito">Débito</SelectItem>
+                  <SelectItem value="Crédito">Crédito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Pix">Pix</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Installment Options (conditionally rendered) */}
+        {paymentMethod === "Crédito" && (
+          <>
+            <FormField
+              control={form.control}
+              name="isInstallment"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Parcelar</FormLabel>
+                    <FormDescription>
+                      Marque para adicionar esta transação em parcelas.
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+            {isInstallmentChecked && (
+              <FormField
+                control={form.control}
+                name="numberOfInstallments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Parcelas</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="2" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </>
+        )}
+
+        {/* Description Field (last) */}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descrição</FormLabel>
+              <FormControl>
+                <Input placeholder="Aluguel, Salário, Compras..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" className="w-full">
           Adicionar Transação
         </Button>

@@ -5,24 +5,23 @@ import TransactionList from "@/components/transactions/TransactionList";
 import AddTransactionForm from "@/components/transactions/AddTransactionForm";
 import MonthYearPicker from "@/components/transactions/MonthYearPicker";
 import TransactionCharts from "@/components/transactions/TransactionCharts";
-import TransactionTypeSwitcher from "@/components/transactions/TransactionTypeSwitcher"; // Importar o novo switcher
-import { Transaction, TransactionType } from "@/types";
+import TransactionTypeSwitcher from "@/components/transactions/TransactionTypeSwitcher";
+import { Transaction, TransactionType, PaymentMethod } from "@/types"; // Importar PaymentMethod
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils"; // Importar a nova utilidade
+import { formatCurrency } from "@/lib/utils";
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
-    // Inicializa do localStorage ou padrão para BRL
     if (typeof window !== 'undefined') {
       return localStorage.getItem("selectedCurrency") || "BRL";
     }
     return "BRL";
   });
-  const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense"); // Novo estado para o tipo de transação
+  const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense");
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -30,11 +29,10 @@ const Index = () => {
     }
   }, [selectedCurrency]);
 
-  const handleAddTransaction = (newTransactionData: Omit<Transaction, "id" | "date">) => {
+  const handleAddTransaction = (newTransactionData: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
       ...newTransactionData,
       id: uuidv4(),
-      date: new Date().toISOString(),
     };
     setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
   };
@@ -121,7 +119,6 @@ const Index = () => {
           </Card>
         </div>
         <div className="lg:col-span-1 space-y-6">
-          {/* Transaction Type Switcher */}
           <TransactionTypeSwitcher
             currentType={selectedTransactionType}
             onTypeChange={setSelectedTransactionType}
