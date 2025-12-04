@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Adicionado useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import Header from "@/components/layout/Header";
 import TransactionList from "@/components/transactions/TransactionList";
@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner"; // Importar toast para notificações
+import { toast } from "sonner";
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -26,7 +26,7 @@ const Index = () => {
   });
   const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense");
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
-  const [userId, setUserId] = useState<string | undefined>(undefined); // Novo estado para o ID do usuário
+  const [userId, setUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -34,7 +34,6 @@ const Index = () => {
     }
   }, [selectedCurrency]);
 
-  // Efeito para buscar o email e o ID do usuário logado
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -63,7 +62,6 @@ const Index = () => {
     };
   }, []);
 
-  // Função para buscar transações do Supabase
   const fetchTransactions = useCallback(async () => {
     if (!userId) {
       setTransactions([]);
@@ -83,7 +81,6 @@ const Index = () => {
     }
   }, [userId]);
 
-  // Carregar transações quando o userId mudar
   useEffect(() => {
     fetchTransactions();
   }, [userId, fetchTransactions]);
@@ -111,24 +108,81 @@ const Index = () => {
     }
   };
 
-  const handleDeleteTransaction = async (id: string) => {
+  const handleDeleteTransaction = async (id: string, scope: 'single' | 'all_future', recurringId?: string, transactionDate?: string) => {
     if (!userId) {
       toast.error("Usuário não autenticado. Não foi possível excluir a transação.");
       return;
     }
 
-    const { error } = await supabase
-      .from("transactions")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId); // Garantir que o usuário só pode excluir suas próprias transações
+    let deletedCount = 0;
 
-    if (error) {
-      toast.error("Erro ao excluir transação: " + error.message);
-      console.error("Erro ao excluir transação:", error);
-    } else {
+    if (scope === 'single') {
+      const { error } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (error) {
+        toast.error("Erro ao excluir transação: " + error.message);
+        console.error("Erro ao excluir transação:", error);
+        return;
+      }
+      deletedCount = 1;
       setTransactions((prevTransactions) => prevTransactions.filter((t) => t.id !== id));
-      toast.success("Transação excluída com sucesso!");
+    } else if (scope === 'all_future' && recurringId && transactionDate) {
+      // Delete the current transaction
+      const { error: deleteCurrentError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (deleteCurrentError) {
+        toast.error("Erro ao excluir transação atual: " + deleteCurrentError.message);
+        console.error("Erro ao excluir transação atual:", deleteCurrentError);
+        return;
+      }
+      deletedCount++;
+
+      // Delete all future recurring transactions
+      const { data: futureTransactions, error: fetchFutureError } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("recurring_id", recurringId)
+        .gt("date", transactionDate); // Delete transactions strictly after the current one
+
+      if (fetchFutureError) {
+        toast.error("Erro ao buscar transações futuras: " + fetchFutureError.message);
+        console.error("Erro ao buscar transações futuras:", fetchFutureError);
+        return;
+      }
+
+      if (futureTransactions && futureTransactions.length > 0) {
+        const futureIdsToDelete = futureTransactions.map(t => t.id);
+        const { error: deleteFutureError } = await supabase
+          .from("transactions")
+          .delete()
+          .in("id", futureIdsToDelete)
+          .eq("user_id", userId);
+
+        if (deleteFutureError) {
+          toast.error("Erro ao excluir transações futuras: " + deleteFutureError.message);
+          console.error("Erro ao excluir transações futuras:", deleteFutureError);
+          return;
+        }
+        deletedCount += futureIdsToDelete.length;
+        setTransactions((prevTransactions) =>
+          prevTransactions.filter((t) => t.id !== id && !futureIdsToDelete.includes(t.id))
+        );
+      } else {
+        setTransactions((prevTransactions) => prevTransactions.filter((t) => t.id !== id));
+      }
+    }
+
+    if (deletedCount > 0) {
+      toast.success(`${deletedCount} transação(ões) excluída(s) com sucesso!`);
     }
   };
 

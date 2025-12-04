@@ -8,8 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button"; // Importar Button
-import { Trash2 } from "lucide-react"; // Importar ícone de lixeira
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"; // Importar AlertDialog
+} from "@/components/ui/alert-dialog";
 import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,7 +29,7 @@ import { formatCurrency } from "@/lib/utils";
 interface TransactionListProps {
   transactions: Transaction[];
   selectedCurrency: string;
-  onDeleteTransaction: (id: string) => void; // Nova prop para exclusão
+  onDeleteTransaction: (id: string, scope: 'single' | 'all_future', recurringId?: string, transactionDate?: string) => void;
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, selectedCurrency, onDeleteTransaction }) => {
@@ -44,13 +44,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, selecte
             <TableHead>Pagamento</TableHead>
             <TableHead className="text-right">Valor</TableHead>
             <TableHead className="text-center">Tipo</TableHead>
-            <TableHead className="text-center">Ações</TableHead> {/* Nova coluna */}
+            <TableHead className="text-center">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {transactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground"> {/* Colspan ajustado */}
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                 Nenhuma transação encontrada.
               </TableCell>
             </TableRow>
@@ -89,15 +89,32 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, selecte
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. Isso excluirá permanentemente esta transação.
-                        </AlertDialogDescription>
+                        {transaction.is_recurring && transaction.recurring_id ? (
+                          <AlertDialogDescription>
+                            Esta é uma transação recorrente. Deseja excluir apenas esta instância ou todas as futuras transações desta série?
+                          </AlertDialogDescription>
+                        ) : (
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Isso excluirá permanentemente esta transação.
+                          </AlertDialogDescription>
+                        )}
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDeleteTransaction(transaction.id)}>
-                          Excluir
-                        </AlertDialogAction>
+                        {transaction.is_recurring && transaction.recurring_id ? (
+                          <>
+                            <AlertDialogAction onClick={() => onDeleteTransaction(transaction.id, 'single')}>
+                              Excluir apenas esta
+                            </AlertDialogAction>
+                            <AlertDialogAction onClick={() => onDeleteTransaction(transaction.id, 'all_future', transaction.recurring_id, transaction.date)}>
+                              Excluir todas as futuras
+                            </AlertDialogAction>
+                          </>
+                        ) : (
+                          <AlertDialogAction onClick={() => onDeleteTransaction(transaction.id, 'single')}>
+                            Excluir
+                          </AlertDialogAction>
+                        )}
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
