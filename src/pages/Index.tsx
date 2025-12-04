@@ -11,6 +11,7 @@ import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { supabase } from "@/lib/supabase"; // Importar supabase
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -23,12 +24,24 @@ const Index = () => {
     return "BRL";
   });
   const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense");
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined); // Estado para o email do usuário
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem("selectedCurrency", selectedCurrency);
     }
   }, [selectedCurrency]);
+
+  // Efeito para buscar o email do usuário logado
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email);
+      }
+    };
+    fetchUserEmail();
+  }, []);
 
   const handleAddTransaction = (newTransactionData: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
@@ -63,7 +76,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} />
+      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} userEmail={userEmail} /> {/* Passar userEmail */}
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <MonthYearPicker

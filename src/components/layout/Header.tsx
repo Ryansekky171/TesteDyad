@@ -8,14 +8,16 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes"; // Import useTheme
+import { useTheme } from "next-themes";
+import UserMenu from "./UserMenu"; // Importar UserMenu
 
 interface HeaderProps {
   selectedCurrency: string;
   onCurrencyChange: (currency: string) => void;
+  userEmail?: string; // Adicionar prop para o email do usuário
 }
 
-const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange }) => {
+const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, userEmail }) => {
   const { theme, setTheme } = useTheme();
 
   const currencies = [
@@ -46,6 +48,7 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange }) =
             {theme === "dark" ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
             <span className="sr-only">Toggle theme</span>
           </Button>
+          <UserMenu userEmail={userEmail} /> {/* Adicionar o UserMenu aqui */}
         </div>
       </div>
     </header>
