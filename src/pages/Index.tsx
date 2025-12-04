@@ -6,8 +6,8 @@ import AddTransactionForm from "@/components/transactions/AddTransactionForm";
 import MonthYearPicker from "@/components/transactions/MonthYearPicker";
 import TransactionCharts from "@/components/transactions/TransactionCharts";
 import TransactionTypeSwitcher from "@/components/transactions/TransactionTypeSwitcher";
-import ExportButtons from "@/components/transactions/ExportButtons"; // Importar o novo componente
-import { Transaction, TransactionType, PaymentMethod } from "@/types"; // Importar PaymentMethod
+import ExportButtons from "@/components/transactions/ExportButtons";
+import { Transaction, TransactionType, PaymentMethod } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -72,7 +72,6 @@ const Index = () => {
             onDateChange={handleDateChange}
           />
 
-          {/* Novo componente para exportar dados */}
           <ExportButtons
             allTransactions={transactions}
             filteredTransactions={filteredTransactions}
