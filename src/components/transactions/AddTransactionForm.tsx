@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -13,6 +12,22 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Transaction, TransactionType } from "@/types";
 import { toast } from "sonner";
 
@@ -24,13 +39,42 @@ const formSchema = z.object({
 
 interface AddTransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id" | "date">) => void;
-  transactionType: TransactionType; // Nova prop para o tipo de transação
+  transactionType: TransactionType;
 }
 
 const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   onAddTransaction,
-  transactionType, // Desestrutura a nova prop
+  transactionType,
 }) => {
+  const [incomeCategories, setIncomeCategories] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem("incomeCategories");
+      return stored ? JSON.parse(stored) : ["Salário", "Freela"];
+    }
+    return ["Salário", "Freela"];
+  });
+  const [expenseCategories, setExpenseCategories] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem("expenseCategories");
+      return stored ? JSON.parse(stored) : ["Dívidas", "Conta", "Aluguel", "Compra", "Lazer", "Viagem"];
+    }
+    return ["Dívidas", "Conta", "Aluguel", "Compra", "Lazer", "Viagem"];
+  });
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("incomeCategories", JSON.stringify(incomeCategories));
+    }
+  }, [incomeCategories]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("expenseCategories", JSON.stringify(expenseCategories));
+    }
+  }, [expenseCategories]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,8 +84,31 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     },
   });
 
+  const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
+
+  const handleAddNewCategory = () => {
+    if (newCategoryName.trim() === "") {
+      toast.error("O nome da categoria não pode ser vazio.");
+      return;
+    }
+    const categoryToAdd = newCategoryName.trim();
+    if (currentCategories.includes(categoryToAdd)) {
+      toast.error("Esta categoria já existe.");
+      return;
+    }
+
+    if (transactionType === "income") {
+      setIncomeCategories((prev) => [...prev, categoryToAdd]);
+    } else {
+      setExpenseCategories((prev) => [...prev, categoryToAdd]);
+    }
+    form.setValue("category", categoryToAdd);
+    setNewCategoryName("");
+    setShowNewCategoryDialog(false);
+    toast.success(`Categoria '${categoryToAdd}' adicionada!`);
+  };
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Combina os valores do formulário com a prop transactionType
     onAddTransaction({ ...values, type: transactionType });
     form.reset();
     toast.success("Transação adicionada com sucesso!");
@@ -76,16 +143,38 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
             </FormItem>
           )}
         />
-        {/* O campo de seleção de tipo foi removido daqui */}
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Categoria</FormLabel>
-              <FormControl>
-                <Input placeholder="Casa, Alimentação, Lazer..." {...field} />
-              </FormControl>
+              <Select
+                onValueChange={(value) => {
+                  if (value === "new-category") {
+                    setShowNewCategoryDialog(true);
+                  } else {
+                    field.onChange(value);
+                  }
+                }}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {currentCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="new-category">
+                    <span className="font-semibold text-blue-500">Novo...</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -94,6 +183,31 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           Adicionar Transação
         </Button>
       </form>
+
+      <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Categoria</DialogTitle>
+            <DialogDescription>
+              Digite o nome da nova categoria para {transactionType === "income" ? "receitas" : "despesas"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              id="new-category-name"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Nome da categoria"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewCategoryDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddNewCategory}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 };
