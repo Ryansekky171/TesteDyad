@@ -5,7 +5,8 @@ import TransactionList from "@/components/transactions/TransactionList";
 import AddTransactionForm from "@/components/transactions/AddTransactionForm";
 import MonthYearPicker from "@/components/transactions/MonthYearPicker";
 import TransactionCharts from "@/components/transactions/TransactionCharts";
-import { Transaction } from "@/types";
+import TransactionTypeSwitcher from "@/components/transactions/TransactionTypeSwitcher"; // Importar o novo switcher
+import { Transaction, TransactionType } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils"; // Importar a nova utilidade
@@ -21,6 +22,7 @@ const Index = () => {
     }
     return "BRL";
   });
+  const [selectedTransactionType, setSelectedTransactionType] = useState<TransactionType>("expense"); // Novo estado para o tipo de transação
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -62,7 +64,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} /> {/* Passa props de moeda */}
+      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <MonthYearPicker
@@ -79,7 +81,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalIncome, selectedCurrency)} {/* Usa formatCurrency */}
+                  {formatCurrency(totalIncome, selectedCurrency)}
                 </div>
               </CardContent>
             </Card>
@@ -90,7 +92,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {formatCurrency(totalExpense, selectedCurrency)} {/* Usa formatCurrency */}
+                  {formatCurrency(totalExpense, selectedCurrency)}
                 </div>
               </CardContent>
             </Card>
@@ -101,30 +103,35 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                  {formatCurrency(balance, selectedCurrency)} {/* Usa formatCurrency */}
+                  {formatCurrency(balance, selectedCurrency)}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} /> {/* Passa prop de moeda */}
+          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} />
 
           <Card>
             <CardHeader>
               <CardTitle>Minhas Transações</CardTitle>
             </CardHeader>
             <CardContent className="max-h-[400px] overflow-y-auto">
-              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} /> {/* Passa prop de moeda */}
+              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} />
             </CardContent>
           </Card>
         </div>
         <div className="lg:col-span-1 space-y-6">
+          {/* Transaction Type Switcher */}
+          <TransactionTypeSwitcher
+            currentType={selectedTransactionType}
+            onTypeChange={setSelectedTransactionType}
+          />
           <Card>
             <CardHeader>
               <CardTitle>Adicionar Nova Transação</CardTitle>
             </CardHeader>
             <CardContent>
-              <AddTransactionForm onAddTransaction={handleAddTransaction} />
+              <AddTransactionForm onAddTransaction={handleAddTransaction} transactionType={selectedTransactionType} />
             </CardContent>
           </Card>
         </div>
