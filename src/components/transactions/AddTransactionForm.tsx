@@ -40,7 +40,8 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
-  amount: z.coerce.number().min(0.01, "O valor deve ser positivo."),
+  amount: z.coerce.number().min(0.01, "O valor total deve ser positivo."), // Now represents total amount
+  installmentAmount: z.coerce.number().min(0.01, "O valor da parcela deve ser positivo.").optional(), // New field for installment amount
   date: z.date({ required_error: "A data é obrigatória." }),
   paymentMethod: z.enum(["Débito", "Crédito", "Boleto", "Pix", "Dinheiro"], {
     required_error: "O método de pagamento é obrigatório.",
@@ -55,6 +56,22 @@ const formSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "Número de parcelas é obrigatório e deve ser no mínimo 2 para parcelamento.",
         path: ["numberOfInstallments"],
+      });
+    }
+    // If installmentAmount is provided, it must be less than or equal to total amount
+    if (data.installmentAmount && data.installmentAmount > data.amount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "O valor da parcela não pode ser maior que o valor total.",
+        path: ["installmentAmount"],
+      });
+    }
+    // If installmentAmount is not provided, ensure total amount is divisible by number of installments
+    if (!data.installmentAmount && data.numberOfInstallments && data.amount % data.numberOfInstallments !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "O valor total não é divisível igualmente pelo número de parcelas. Considere informar o valor da parcela.",
+        path: ["amount"],
       });
     }
   }
@@ -103,6 +120,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     defaultValues: {
       category: "",
       amount: 0,
+      installmentAmount: 0, // Initialize new field
       description: "",
       date: new Date(),
       paymentMethod: "Débito",
@@ -114,6 +132,8 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
   const paymentMethod = form.watch("paymentMethod");
   const isInstallmentChecked = form.watch("isInstallment");
+  const totalAmount = form.watch("amount");
+  const numberOfInstallments = form.watch("numberOfInstallments");
 
   const handleAddNewCategory = () => {
     if (newCategoryName.trim() === "") {
@@ -139,13 +159,21 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (values.paymentMethod === "Crédito" && values.isInstallment && values.numberOfInstallments) {
-      const installmentAmount = values.amount; // 'amount' já é o valor da parcela
+      const finalInstallmentAmount = values.installmentAmount && values.installmentAmount > 0
+        ? values.installmentAmount
+        : (values.amount / values.numberOfInstallments);
+
+      if (finalInstallmentAmount <= 0) {
+        toast.error("O valor da parcela calculado é inválido. Verifique o valor total e o número de parcelas.");
+        return;
+      }
+
       for (let i = 0; i < values.numberOfInstallments; i++) {
         const installmentDate = addMonths(values.date, i);
         const installmentDescription = `${values.description} (Parcela ${i + 1}/${values.numberOfInstallments})`;
         onAddTransaction({
           description: installmentDescription,
-          amount: installmentAmount,
+          amount: finalInstallmentAmount, // Use the calculated or provided installment amount
           type: transactionType,
           category: values.category,
           date: installmentDate.toISOString(),
@@ -156,7 +184,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     } else {
       onAddTransaction({
         description: values.description,
-        amount: values.amount,
+        amount: values.amount, // Use total amount for non-installment transactions
         type: transactionType,
         category: values.category,
         date: values.date.toISOString(),
@@ -167,6 +195,7 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
     form.reset({
       category: "",
       amount: 0,
+      installmentAmount: 0,
       description: "",
       date: new Date(),
       paymentMethod: "Débito",
@@ -216,26 +245,24 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           )}
         />
 
-        {/* Amount Field */}
+        {/* Total Amount Field */}
         <FormField
           control={form.control}
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{paymentMethod === "Crédito" && isInstallmentChecked ? "Valor da Parcela" : "Valor"}</FormLabel>
+              <FormLabel>Valor Total da Compra</FormLabel>
               <FormControl>
                 <Input
-                  type="text" // Alterado para text para permitir formatação personalizada
+                  type="text"
                   value={field.value === 0 ? "" : formatAmountDisplay(field.value)}
                   onChange={(e) => {
                     const rawValue = e.target.value;
-                    // Remove todos os caracteres não numéricos
-                    const cleanedValue = rawValue.replace(/\D/g, ''); // Keep only digits
+                    const cleanedValue = rawValue.replace(/\D/g, '');
                     
                     if (cleanedValue === '') {
-                      field.onChange(0); // If empty, set amount to 0
+                      field.onChange(0);
                     } else {
-                      // Convert to integer (representing cents) and then to actual amount
                       const cents = parseInt(cleanedValue, 10);
                       field.onChange(cents / 100);
                     }
@@ -273,45 +300,80 @@ const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
           )}
         />
 
-        {/* Installment Options (conditionally rendered) */}
+        {/* Installment Checkbox (conditionally rendered) */}
         {paymentMethod === "Crédito" && (
-          <>
-            <FormField
-              control={form.control}
-              name="isInstallment"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Parcelar</FormLabel>
-                    <FormDescription>
-                      Marque para adicionar esta transação em parcelas.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-            {isInstallmentChecked && (
-              <FormField
-                control={form.control}
-                name="numberOfInstallments"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número de Parcelas</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <FormField
+            control={form.control}
+            name="isInstallment"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Parcelar</FormLabel>
+                  <FormDescription>
+                    Marque para adicionar esta transação em parcelas.
+                  </FormDescription>
+                </div>
+              </FormItem>
             )}
-          </>
+          />
+        )}
+
+        {/* Number of Installments Field (conditionally rendered) */}
+        {paymentMethod === "Crédito" && isInstallmentChecked && (
+          <FormField
+            control={form.control}
+            name="numberOfInstallments"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número de Parcelas</FormLabel>
+                <FormControl>
+                  <Input type="number" min="2" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Installment Amount Field (NEW, conditionally rendered) */}
+        {paymentMethod === "Crédito" && isInstallmentChecked && numberOfInstallments && (
+          <FormField
+            control={form.control}
+            name="installmentAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor da Parcela (opcional)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    placeholder={formatAmountDisplay(totalAmount / numberOfInstallments)} // Placeholder with calculated value
+                    value={field.value === 0 ? "" : formatAmountDisplay(field.value)}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      const cleanedValue = rawValue.replace(/\D/g, '');
+                      
+                      if (cleanedValue === '') {
+                        field.onChange(0);
+                      } else {
+                        const cents = parseInt(cleanedValue, 10);
+                        field.onChange(cents / 100);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Se vazio, será calculado: {formatAmountDisplay(totalAmount / numberOfInstallments)}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
         {/* Date Field */}
