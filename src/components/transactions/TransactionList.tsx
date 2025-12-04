@@ -88,7 +88,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, selecte
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          {transaction.is_recurring && transaction.recurring_id
+                            ? "Transação Recorrente"
+                            : "Tem certeza?"}
+                        </AlertDialogTitle>
                         {transaction.is_recurring && transaction.recurring_id ? (
                           <AlertDialogDescription>
                             Esta é uma transação recorrente. Deseja excluir apenas esta instância ou todas as futuras transações desta série?
