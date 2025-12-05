@@ -215,7 +215,28 @@ const Index = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} userEmail={userEmail} />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        {/* Seção de Adicionar Transação - aparece primeiro no mobile, segundo no desktop */}
+        <div className="lg:col-span-1 space-y-6 order-1 lg:order-2">
+          <TransactionTypeSwitcher
+            currentType={selectedTransactionType}
+            onTypeChange={setSelectedTransactionType}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Adicionar Nova Transação</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {userId ? (
+                <AddTransactionForm onAddTransaction={handleAddTransaction} transactionType={selectedTransactionType} userId={userId} />
+              ) : (
+                <p className="text-center text-muted-foreground">Faça login para adicionar transações.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Seção Principal (Resumo, Gráficos, Lista) - aparece segundo no mobile, primeiro no desktop */}
+        <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
           <MonthYearPicker
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
@@ -277,24 +298,6 @@ const Index = () => {
             </CardHeader>
             <CardContent className="max-h-[400px] overflow-y-auto">
               <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} onDeleteTransaction={handleDeleteTransaction} />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-1 space-y-6">
-          <TransactionTypeSwitcher
-            currentType={selectedTransactionType}
-            onTypeChange={setSelectedTransactionType}
-          />
-          <Card>
-            <CardHeader>
-              <CardTitle>Adicionar Nova Transação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {userId ? (
-                <AddTransactionForm onAddTransaction={handleAddTransaction} transactionType={selectedTransactionType} userId={userId} />
-              ) : (
-                <p className="text-center text-muted-foreground">Faça login para adicionar transações.</p>
-              )}
             </CardContent>
           </Card>
         </div>
