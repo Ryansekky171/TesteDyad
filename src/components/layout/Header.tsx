@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, PlusCircle, FileText, BarChart2, ListChecks } from "lucide-react"; // Adicionado novos ícones
+import { Moon, Sun, Menu, PlusCircle, FileText, BarChart2, ListChecks } from "lucide-react";
 import { useTheme } from "next-themes";
 import UserMenu from "./UserMenu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -19,13 +19,13 @@ interface HeaderProps {
   selectedCurrency: string;
   onCurrencyChange: (currency: string) => void;
   userEmail?: string;
-  onNavigateToSection: (id: string) => void; // New prop for navigation
+  onNavigateToSection: (id: string) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, userEmail, onNavigateToSection }) => {
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
-  const [isSheetOpen, setIsSheetOpen] = useState(false); // State to control sheet open/close
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const currencies = [
     { value: "BRL", label: "R$ (BRL)" },
@@ -58,7 +58,10 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
 
   const handleNavigationClick = (id: string) => {
     onNavigateToSection(id);
-    setIsSheetOpen(false); // Close the sheet after navigation
+    // Adiciona um pequeno atraso para fechar o menu, permitindo que a rolagem ocorra primeiro
+    setTimeout(() => {
+      setIsSheetOpen(false);
+    }, 100); 
   };
 
   return (
@@ -81,16 +84,16 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
                 </div>
                 <div className="flex flex-col gap-2 mt-4 border-t pt-4">
                   <h2 className="text-lg font-bold">Navegação</h2>
-                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('add-transaction-section')}>
+                  <Button variant="ghost" className="w-full justify-start text-left" onClick={() => handleNavigationClick('add-transaction-section')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Dashboard
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('reports-section')}>
+                  <Button variant="ghost" className="w-full justify-start text-left" onClick={() => handleNavigationClick('reports-section')}>
                     <FileText className="mr-2 h-4 w-4" /> Relatórios
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('charts-section')}>
+                  <Button variant="ghost" className="w-full justify-start text-left" onClick={() => handleNavigationClick('charts-section')}>
                     <BarChart2 className="mr-2 h-4 w-4" /> Gráficos
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('transactions-list-section')}>
+                  <Button variant="ghost" className="w-full justify-start text-left" onClick={() => handleNavigationClick('transactions-list-section')}>
                     <ListChecks className="mr-2 h-4 w-4" /> Transações
                   </Button>
                 </div>
