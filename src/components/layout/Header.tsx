@@ -58,10 +58,10 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
 
   const handleNavigationClick = (id: string) => {
     onNavigateToSection(id);
-    // Adiciona um pequeno atraso para fechar o menu, permitindo que a rolagem ocorra primeiro
+    // Aumenta o atraso para dar mais tempo para a rolagem antes de fechar o menu
     setTimeout(() => {
       setIsSheetOpen(false);
-    }, 100); 
+    }, 300); 
   };
 
   return (
@@ -76,13 +76,14 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[200px] sm:w-[240px] flex flex-col">
-              <div className="flex flex-col gap-4 p-4 flex-grow">
-                <h2 className="text-lg font-bold">Opções</h2>
-                <div className="flex flex-col gap-2">
+              {/* Removido p-4 do div principal e adicionado px-4 aos elementos internos */}
+              <div className="flex flex-col gap-4 flex-grow">
+                <h2 className="text-lg font-bold px-4">Opções</h2>
+                <div className="flex flex-col gap-2 px-4">
                   {currencySelector}
                   {themeToggle}
                 </div>
-                <div className="flex flex-col gap-2 mt-4 border-t pt-4">
+                <div className="flex flex-col gap-2 mt-4 border-t pt-4 px-4"> {/* Adicionado px-4 aqui também */}
                   <h2 className="text-lg font-bold">Navegação</h2>
                   <Button variant="ghost" className="w-full justify-start text-left" onClick={() => handleNavigationClick('add-transaction-section')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Dashboard
