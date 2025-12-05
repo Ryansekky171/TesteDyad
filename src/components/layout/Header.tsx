@@ -82,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
                 <div className="flex flex-col gap-2 mt-4 border-t pt-4">
                   <h2 className="text-lg font-bold">Navegação</h2>
                   <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('add-transaction-section')}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Transação
+                    <PlusCircle className="mr-2 h-4 w-4" /> Dashboard
                   </Button>
                   <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('reports-section')}>
                     <FileText className="mr-2 h-4 w-4" /> Relatórios
@@ -91,7 +91,7 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
                     <BarChart2 className="mr-2 h-4 w-4" /> Gráficos
                   </Button>
                   <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('transactions-list-section')}>
-                    <ListChecks className="mr-2 h-4 w-4" /> Minhas Transações
+                    <ListChecks className="mr-2 h-4 w-4" /> Transações
                   </Button>
                 </div>
               </div>

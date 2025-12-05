@@ -229,7 +229,7 @@ const Index = () => {
       />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Seção de Adicionar Transação - aparece primeiro no mobile, segundo no desktop */}
-        <div id="add-transaction-section" className="lg:col-span-1 space-y-6 order-1 lg:order-2">
+        <div id="add-transaction-section" className="lg:col-span-1 space-y-6 order-1 lg:order-2 scroll-mt-20">
           <TransactionTypeSwitcher
             currentType={selectedTransactionType}
             onTypeChange={setSelectedTransactionType}
@@ -256,7 +256,7 @@ const Index = () => {
             onDateChange={handleDateChange}
           />
 
-          <div id="reports-section"> {/* ID for Export Buttons */}
+          <div id="reports-section" className="scroll-mt-20"> {/* ID for Export Buttons */}
             <ExportButtons
               allTransactions={transactions}
               filteredTransactions={filteredTransactions}
@@ -305,11 +305,11 @@ const Index = () => {
             </Card>
           </div>
 
-          <div id="charts-section"> {/* ID for Transaction Charts */}
+          <div id="charts-section" className="scroll-mt-20"> {/* ID for Transaction Charts */}
             <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} />
           </div>
 
-          <div id="transactions-list-section"> {/* ID for Transaction List */}
+          <div id="transactions-list-section" className="scroll-mt-20"> {/* ID for Transaction List */}
             <Card>
               <CardHeader>
                 <CardTitle>Minhas Transações</CardTitle>
