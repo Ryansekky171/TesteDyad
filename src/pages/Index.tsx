@@ -211,12 +211,25 @@ const Index = () => {
 
   const balance = totalIncome - totalExpense;
 
+  // Function to scroll to a specific section
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header selectedCurrency={selectedCurrency} onCurrencyChange={setSelectedCurrency} userEmail={userEmail} />
+      <Header
+        selectedCurrency={selectedCurrency}
+        onCurrencyChange={setSelectedCurrency}
+        userEmail={userEmail}
+        onNavigateToSection={scrollToSection} // Pass the scroll function
+      />
       <main className="flex-grow container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Seção de Adicionar Transação - aparece primeiro no mobile, segundo no desktop */}
-        <div className="lg:col-span-1 space-y-6 order-1 lg:order-2">
+        <div id="add-transaction-section" className="lg:col-span-1 space-y-6 order-1 lg:order-2">
           <TransactionTypeSwitcher
             currentType={selectedTransactionType}
             onTypeChange={setSelectedTransactionType}
@@ -243,16 +256,18 @@ const Index = () => {
             onDateChange={handleDateChange}
           />
 
-          <ExportButtons
-            allTransactions={transactions}
-            filteredTransactions={filteredTransactions}
-            totalIncome={totalIncome}
-            totalExpense={totalExpense}
-            balance={balance}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-            selectedCurrency={selectedCurrency}
-          />
+          <div id="reports-section"> {/* ID for Export Buttons */}
+            <ExportButtons
+              allTransactions={transactions}
+              filteredTransactions={filteredTransactions}
+              totalIncome={totalIncome}
+              totalExpense={totalExpense}
+              balance={balance}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+              selectedCurrency={selectedCurrency}
+            />
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
@@ -290,16 +305,20 @@ const Index = () => {
             </Card>
           </div>
 
-          <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} />
+          <div id="charts-section"> {/* ID for Transaction Charts */}
+            <TransactionCharts transactions={filteredTransactions} totalIncome={totalIncome} totalExpense={totalExpense} selectedCurrency={selectedCurrency} />
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Minhas Transações</CardTitle>
-            </CardHeader>
-            <CardContent className="max-h-[400px] overflow-y-auto">
-              <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} onDeleteTransaction={handleDeleteTransaction} />
-            </CardContent>
-          </Card>
+          <div id="transactions-list-section"> {/* ID for Transaction List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Minhas Transações</CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[400px] overflow-y-auto">
+                <TransactionList transactions={filteredTransactions} selectedCurrency={selectedCurrency} onDeleteTransaction={handleDeleteTransaction} />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
       <MadeWithDyad />

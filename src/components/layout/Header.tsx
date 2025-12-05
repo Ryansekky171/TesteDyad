@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -9,21 +9,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu } from "lucide-react"; // Adicionado Menu icon
+import { Moon, Sun, Menu, PlusCircle, FileText, BarChart2, ListChecks } from "lucide-react"; // Adicionado novos ícones
 import { useTheme } from "next-themes";
 import UserMenu from "./UserMenu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; // Adicionado Sheet components
-import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface HeaderProps {
   selectedCurrency: string;
   onCurrencyChange: (currency: string) => void;
   userEmail?: string;
+  onNavigateToSection: (id: string) => void; // New prop for navigation
 }
 
-const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, userEmail }) => {
+const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, userEmail, onNavigateToSection }) => {
   const { theme, setTheme } = useTheme();
-  const isMobile = useIsMobile(); // Use o hook para detectar mobile
+  const isMobile = useIsMobile();
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // State to control sheet open/close
 
   const currencies = [
     { value: "BRL", label: "R$ (BRL)" },
@@ -54,23 +56,43 @@ const Header: React.FC<HeaderProps> = ({ selectedCurrency, onCurrencyChange, use
     </Button>
   );
 
+  const handleNavigationClick = (id: string) => {
+    onNavigateToSection(id);
+    setIsSheetOpen(false); // Close the sheet after navigation
+  };
+
   return (
     <header className="bg-primary text-primary-foreground p-4 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
         {isMobile && (
-          <Sheet>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Abrir Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[200px] sm:w-[240px]">
-              <div className="flex flex-col gap-4 p-4">
+            <SheetContent side="left" className="w-[200px] sm:w-[240px] flex flex-col">
+              <div className="flex flex-col gap-4 p-4 flex-grow">
                 <h2 className="text-lg font-bold">Opções</h2>
                 <div className="flex flex-col gap-2">
                   {currencySelector}
                   {themeToggle}
+                </div>
+                <div className="flex flex-col gap-2 mt-4 border-t pt-4">
+                  <h2 className="text-lg font-bold">Navegação</h2>
+                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('add-transaction-section')}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Transação
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('reports-section')}>
+                    <FileText className="mr-2 h-4 w-4" /> Relatórios
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('charts-section')}>
+                    <BarChart2 className="mr-2 h-4 w-4" /> Gráficos
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" onClick={() => handleNavigationClick('transactions-list-section')}>
+                    <ListChecks className="mr-2 h-4 w-4" /> Minhas Transações
+                  </Button>
                 </div>
               </div>
             </SheetContent>
